@@ -140,27 +140,25 @@ func (s *Server) setPalette(rw http.ResponseWriter, r *http.Request) {
 		"palette":      req.Palette,
 		"primaryState": state,
 	}).Debug("Setting light state")
+	var errChan <-chan error
 	switch strings.ToLower(req.Palette) {
 	case "complementary":
-		err = s.palette.SetComplementary(lights, state)
+		errChan = s.palette.SetComplementary(lights, state)
 	case "triad":
-		err = s.palette.SetTriad(lights, state)
+		errChan = s.palette.SetTriad(lights, state)
 	case "analogous", "adjacent":
-		err = s.palette.SetAnalogous(lights, state)
+		errChan = s.palette.SetAnalogous(lights, state)
 	case "split", "splitcomplementary":
-		err = s.palette.SetSplitComplementary(lights, state)
+		errChan = s.palette.SetSplitComplementary(lights, state)
 	case "rectangle":
-		err = s.palette.SetRectangle(lights, state)
+		errChan = s.palette.SetRectangle(lights, state)
 	case "square":
-		err = s.palette.SetSquare(lights, state)
+		errChan = s.palette.SetSquare(lights, state)
 	default:
 		http.Error(rw, "Invalid palette", http.StatusBadRequest)
 		return
 	}
-	if err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	handleErrChan(rw, errChan)
 }
 
 func (s *Server) lightsOut(rw http.ResponseWriter, r *http.Request) {
@@ -171,9 +169,18 @@ func (s *Server) lightsOut(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 	state := hue.LightState{On: boolPtr(false)}
-	err = s.palette.SetGroup(lights, []hue.LightState{state})
+	errChan := s.palette.SetGroup(lights, []hue.LightState{state})
+	handleErrChan(rw, errChan)
+}
+
+func handleErrChan(rw http.ResponseWriter, errChan <-chan error) {
+	var err error
+	for errResponse := range errChan {
+		if errResponse != nil {
+			err = errResponse
+		}
+	}
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
-		return
 	}
 }

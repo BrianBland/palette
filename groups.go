@@ -1,48 +1,60 @@
 package palette
 
 import (
+	"sync"
+
 	"github.com/BrianBland/go-hue"
 )
 
-func (p *Palette) SetGroup(lights []hue.Light, states []hue.LightState) error {
-	var ret error
-	for i, light := range lights {
-		err := p.user.SetLightState(light.Id, &states[i%len(states)])
-		if err != nil {
-			ret = err
-		}
+func (p *Palette) SetGroup(lights []hue.Light, states []hue.LightState) <-chan error {
+	res := make(chan error, len(lights))
+	var wg sync.WaitGroup
+	wg.Add(len(lights))
+
+	setLight := func(i int, res chan<- error) {
+		res <- p.user.SetLightState(lights[i].Id, &states[i%len(states)])
+		wg.Done()
 	}
-	return ret
+	for i := range lights {
+		go setLight(i, res)
+	}
+
+	go func() {
+		wg.Wait()
+		close(res)
+	}()
+
+	return res
 }
 
-func (p *Palette) SetComplementary(lights []hue.Light, primary hue.LightState) error {
+func (p *Palette) SetComplementary(lights []hue.Light, primary hue.LightState) <-chan error {
 	secondary := RotateDegrees(primary, 180)
 	states := []hue.LightState{primary, secondary}
 	return p.SetGroup(lights, states)
 }
 
-func (p *Palette) SetTriad(lights []hue.Light, primary hue.LightState) error {
+func (p *Palette) SetTriad(lights []hue.Light, primary hue.LightState) <-chan error {
 	secondary := RotateDegrees(primary, 120)
 	tertiary := RotateDegrees(primary, 240)
 	states := []hue.LightState{primary, secondary, tertiary}
 	return p.SetGroup(lights, states)
 }
 
-func (p *Palette) SetAnalogous(lights []hue.Light, primary hue.LightState) error {
+func (p *Palette) SetAnalogous(lights []hue.Light, primary hue.LightState) <-chan error {
 	secondary := RotateDegrees(primary, 30)
 	tertiary := RotateDegrees(primary, -30)
 	states := []hue.LightState{primary, secondary, tertiary}
 	return p.SetGroup(lights, states)
 }
 
-func (p *Palette) SetSplitComplementary(lights []hue.Light, primary hue.LightState) error {
+func (p *Palette) SetSplitComplementary(lights []hue.Light, primary hue.LightState) <-chan error {
 	secondary := RotateDegrees(primary, 150)
 	tertiary := RotateDegrees(primary, 210)
 	states := []hue.LightState{primary, secondary, tertiary}
 	return p.SetGroup(lights, states)
 }
 
-func (p *Palette) SetRectangle(lights []hue.Light, primary hue.LightState) error {
+func (p *Palette) SetRectangle(lights []hue.Light, primary hue.LightState) <-chan error {
 	accent := RotateDegrees(primary, 60)
 	complementary := RotateDegrees(primary, 180)
 	complementaryAccent := RotateDegrees(primary, 240)
@@ -50,7 +62,7 @@ func (p *Palette) SetRectangle(lights []hue.Light, primary hue.LightState) error
 	return p.SetGroup(lights, states)
 }
 
-func (p *Palette) SetSquare(lights []hue.Light, primary hue.LightState) error {
+func (p *Palette) SetSquare(lights []hue.Light, primary hue.LightState) <-chan error {
 	accent := RotateDegrees(primary, 90)
 	complementary := RotateDegrees(primary, 180)
 	complementaryAccent := RotateDegrees(primary, 270)
