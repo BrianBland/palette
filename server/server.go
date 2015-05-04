@@ -2,13 +2,19 @@ package server
 
 import (
 	"encoding/json"
-	"log"
+	"math/rand"
 	"net/http"
 	"strings"
 
-	"github.com/BrianBland/go-hue"
 	"github.com/BrianBland/palette"
+
+	"github.com/BrianBland/go-hue"
+	log "github.com/Sirupsen/logrus"
 )
+
+func init() {
+	log.SetLevel(log.DebugLevel)
+}
 
 type Server struct {
 	palette *palette.Palette
@@ -29,6 +35,7 @@ func (s *Server) ListenAndServe(addr string) error {
 type request struct {
 	Palette    string  `json:"palette"`
 	Brightness *uint8  `json:"brightness"`
+	Color      string  `json:"color"`
 	Hue        *uint16 `json:"hue"`
 	Saturation *uint8  `json:"saturation"`
 	Alert      string  `json:"alert"`
@@ -44,16 +51,62 @@ func (r request) brightness() *uint8 {
 
 func (r request) hue() *uint16 {
 	if r.Hue == nil {
-		return uint16Ptr(0)
+		log.WithField("color", r.Color).Debug("No hue provided, using color instead")
+		switch strings.ToLower(r.Color) {
+		case "r", "red":
+			return uint16Ptr(0)
+		case "o", "orange":
+			return uint16Ptr(hueFromDegrees(30))
+		case "y", "yellow":
+			return uint16Ptr(hueFromDegrees(60))
+		case "g", "green":
+			return uint16Ptr(hueFromDegrees(120))
+		case "c", "cyan":
+			return uint16Ptr(hueFromDegrees(180))
+		case "b", "blue":
+			return uint16Ptr(hueFromDegrees(240))
+		case "i", "indigo":
+			return uint16Ptr(hueFromDegrees(260))
+		case "v", "violet":
+			return uint16Ptr(hueFromDegrees(270))
+		case "m", "magenta", "p", "purple":
+			return uint16Ptr(hueFromDegrees(300))
+		default:
+			return uint16Ptr(randomHue())
+		}
 	}
 	return r.Hue
 }
 
+func hueFromDegrees(d float64) uint16 {
+	h := (uint16)((2 << 15) * (d / 360.0))
+	log.WithFields(log.Fields{
+		"degrees": d,
+		"hue":     h,
+	}).Debug("Hue from degrees")
+	return h
+}
+
+func randomHue() uint16 {
+	h := (uint16)(rand.Int31n(2 << 15))
+	log.WithField("hue", h).Debug("Random hue")
+	return h
+}
+
 func (r request) saturation() *uint8 {
 	if r.Saturation == nil {
+		log.Debug("No saturation provided, defaulting to max")
 		return uint8Ptr(2<<7 - 1)
 	}
 	return r.Saturation
+}
+
+func (r request) effect() string {
+	if r.Effect == "" {
+		log.Debug("No effect provided, defaulting to none")
+		return "none"
+	}
+	return r.Effect
 }
 
 func (s *Server) Handler() http.Handler {
@@ -81,8 +134,12 @@ func (s *Server) setPalette(rw http.ResponseWriter, r *http.Request) {
 		Hue:        req.hue(),
 		Saturation: req.saturation(),
 		Alert:      req.Alert,
-		Effect:     req.Effect,
+		Effect:     req.effect(),
 	}
+	log.WithFields(log.Fields{
+		"palette":      req.Palette,
+		"primaryState": state,
+	}).Debug("Setting light state")
 	switch strings.ToLower(req.Palette) {
 	case "complementary":
 		err = s.palette.SetComplementary(lights, state)
@@ -107,6 +164,7 @@ func (s *Server) setPalette(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) lightsOut(rw http.ResponseWriter, r *http.Request) {
+	log.Debug("Lights out!")
 	lights, err := s.palette.GetLights()
 	if err != nil {
 		http.Error(rw, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)

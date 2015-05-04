@@ -1,12 +1,13 @@
 package main
 
 import (
-	"log"
 	"os"
 
-	"github.com/BrianBland/go-hue"
 	"github.com/BrianBland/palette"
 	"github.com/BrianBland/palette/server"
+
+	"github.com/BrianBland/go-hue"
+	log "github.com/Sirupsen/logrus"
 )
 
 func main() {
