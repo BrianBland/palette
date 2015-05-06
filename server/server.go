@@ -158,7 +158,14 @@ func (s *Server) setPalette(rw http.ResponseWriter, r *http.Request) {
 		http.Error(rw, "Invalid palette", http.StatusBadRequest)
 		return
 	}
-	handleErrChan(rw, errChan)
+	err = handleErrChan(rw, errChan)
+	if err == nil {
+		json.NewEncoder(rw).Encode(struct {
+			PrimaryState hue.LightState
+		}{
+			PrimaryState: state,
+		})
+	}
 }
 
 func (s *Server) lightsOut(rw http.ResponseWriter, r *http.Request) {
@@ -173,7 +180,7 @@ func (s *Server) lightsOut(rw http.ResponseWriter, r *http.Request) {
 	handleErrChan(rw, errChan)
 }
 
-func handleErrChan(rw http.ResponseWriter, errChan <-chan error) {
+func handleErrChan(rw http.ResponseWriter, errChan <-chan error) error {
 	var err error
 	for errResponse := range errChan {
 		if errResponse != nil {
@@ -183,4 +190,5 @@ func handleErrChan(rw http.ResponseWriter, errChan <-chan error) {
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 	}
+	return err
 }
