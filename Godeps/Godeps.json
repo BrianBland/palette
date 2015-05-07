@@ -1,0 +1,23 @@
+{
+	"ImportPath": "github.com/BrianBland/palette",
+	"GoVersion": "go1.4.2",
+	"Packages": [
+		"./..."
+	],
+	"Deps": [
+		{
+			"ImportPath": "github.com/BrianBland/go-hue",
+			"Comment": "distributor-20141024-a-1-gcc69e73",
+			"Rev": "cc69e7349f3d14086a1bcb0a77502d64dbf6d6cd"
+		},
+		{
+			"ImportPath": "github.com/Sirupsen/logrus",
+			"Comment": "v0.7.1",
+			"Rev": "3fc34d061b9c78a70db853c7cb6b0576b6d4f32d"
+		},
+		{
+			"ImportPath": "github.com/bcurren/go-ssdp",
+			"Rev": "ae8e7a0ef8a8f119ef439791570ee2a094d1d094"
+		}
+	]
+}
