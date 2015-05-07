@@ -39,7 +39,7 @@
         render: function() {
           var style = {
             fill: "hsl(" + this.props.data.hue * 360/65535 + "," + this.props.data.sat * 100/255 + "%," + this.props.data.bri * 100/255 + "%)",
-            "stroke-width": 3,
+            strokeWidth: 3,
             stroke: "rgb(0,0,0)"
           };
           if (this.props.data.on === false) {
