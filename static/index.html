@@ -37,8 +37,19 @@
       });
       var LightBox = React.createClass({
         render: function() {
+          var hsv = {
+            h: this.props.data.hue * 360/65535,
+            s: this.props.data.sat * 100/255,
+            v: this.props.data.bri * 100/255
+          };
+          var l = (2 - hsv.s / 100) * hsv.v / 2;
+          var hsl = {
+            h: hsv.h,
+            s: hsv.s * hsv.v / (l < 50 ? l * 2 : 200 - l * 2),
+            l: l
+          };
           var style = {
-            fill: "hsl(" + this.props.data.hue * 360/65535 + "," + this.props.data.sat * 100/255 + "%," + this.props.data.bri * 100/255 + "%)",
+            fill: "hsl(" + hsl.h + "," + hsl.s + "%," + hsl.l + "%)",
             strokeWidth: 3,
             stroke: "rgb(0,0,0)"
           };

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
+	"sort"
 
 	"github.com/BrianBland/go-hue"
 )
@@ -55,4 +56,27 @@ func (p *Palette) SaveToConfig() error {
 		return err
 	}
 	return ioutil.WriteFile(CONFIGFILE, b, 0666)
+}
+
+func (p *Palette) GetLights() ([]hue.Light, error) {
+	lights, err := p.User.GetLights()
+	if err != nil {
+		return nil, err
+	}
+	sort.Sort(byID(lights))
+	return lights, nil
+}
+
+type byID []hue.Light
+
+func (s byID) Len() int {
+	return len(s)
+}
+
+func (s byID) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s byID) Less(i, j int) bool {
+	return s[i].Id < s[j].Id
 }
