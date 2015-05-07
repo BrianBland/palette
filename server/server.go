@@ -114,8 +114,10 @@ func (r request) effect() string {
 func (s *Server) Handler() http.Handler {
 	r := mux.NewRouter()
 	r.StrictSlash(true)
+	r.Handle("/", http.FileServer(http.Dir("static")))
 	r.HandleFunc("/lights", s.getLights).Methods("GET")
 	r.HandleFunc("/palette", s.setPalette).Methods("PUT", "POST")
+	r.HandleFunc("/on", s.lightsOn).Methods("PUT", "POST")
 	r.HandleFunc("/off", s.lightsOut).Methods("PUT", "POST")
 	return r
 }
@@ -145,7 +147,7 @@ func (s *Server) getLights(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(rw, struct {
-		Lights []hue.LightState
+		Lights []hue.LightState `json:"lights"`
 	}{
 		Lights: lightStates,
 	})
@@ -199,6 +201,21 @@ func (s *Server) setPalette(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *Server) lightsOn(rw http.ResponseWriter, r *http.Request) {
+	log.Debug("Lights on!")
+	lights, err := s.palette.GetLights()
+	if err != nil {
+		http.Error(rw, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
+		return
+	}
+	state := hue.LightState{On: boolPtr(true)}
+	errChan := s.palette.SetGroup(lights, []hue.LightState{state})
+	handleErrChan(rw, errChan)
+	if err == nil {
+		s.getLights(rw, r)
+	}
+}
+
 func (s *Server) lightsOut(rw http.ResponseWriter, r *http.Request) {
 	log.Debug("Lights out!")
 	lights, err := s.palette.GetLights()
@@ -209,6 +226,9 @@ func (s *Server) lightsOut(rw http.ResponseWriter, r *http.Request) {
 	state := hue.LightState{On: boolPtr(false)}
 	errChan := s.palette.SetGroup(lights, []hue.LightState{state})
 	handleErrChan(rw, errChan)
+	if err == nil {
+		s.getLights(rw, r)
+	}
 }
 
 func handleErrChan(rw http.ResponseWriter, errChan <-chan error) error {

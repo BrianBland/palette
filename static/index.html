@@ -1,0 +1,61 @@
+<!-- index.html -->
+<html>
+  <head>
+    <title>Palette</title>
+    <script src="https://fb.me/react-0.13.2.js"></script>
+    <script src="https://fb.me/JSXTransformer-0.13.2.js"></script>
+    <script src="https://code.jquery.com/jquery-2.1.3.min.js"></script>
+  </head>
+  <body>
+    <div id="content"></div>
+    <script type="text/jsx">
+      var LightControls = React.createClass({
+        getInitialState: function() {
+          return {data: {lights: []}};
+        },
+        componentDidMount: function() {
+          $.ajax({
+            url: "/lights",
+            dataType: "json",
+            cache: false,
+            success: function(data) {
+              this.setState({data: data});
+            }.bind(this),
+            error: function(xhr, status, err) {
+              console.error("/lights", status, err.toString());
+            }.bind(this)
+          });
+        },
+        render: function() {
+          var lightBoxes = this.state.data.lights.map(function(light) {
+            return <LightBox data={light} />
+          });
+          return (
+            <div>{lightBoxes}</div>
+          );
+        }
+      });
+      var LightBox = React.createClass({
+        render: function() {
+          var style = {
+            fill: "hsl(" + this.props.data.hue * 360/65535 + "," + this.props.data.sat * 100/255 + "%," + this.props.data.bri * 100/255 + "%)",
+            "stroke-width": 3,
+            stroke: "rgb(0,0,0)"
+          };
+          if (this.props.data.on === false) {
+            style.fill = "black";
+          }
+          return (
+            <svg width="200" height="200">
+              <rect width="200" height="200" style={style} />
+            </svg>
+          );
+        }
+      });
+      React.render(
+        <LightControls />,
+        document.getElementById("content")
+      );
+    </script>
+  </body>
+</html>
