@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/rand"
 	"net/http"
 	"strings"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/BrianBland/go-hue"
 	log "github.com/Sirupsen/logrus"
+	"github.com/gorilla/mux"
 )
 
 func init() {
@@ -110,10 +112,43 @@ func (r request) effect() string {
 }
 
 func (s *Server) Handler() http.Handler {
-	h := http.NewServeMux()
-	h.HandleFunc("/palette", s.setPalette)
-	h.HandleFunc("/off", s.lightsOut)
-	return h
+	r := mux.NewRouter()
+	r.StrictSlash(true)
+	r.HandleFunc("/lights", s.getLights).Methods("GET")
+	r.HandleFunc("/palette", s.setPalette).Methods("PUT", "POST")
+	r.HandleFunc("/off", s.lightsOut).Methods("PUT", "POST")
+	return r
+}
+
+func (s *Server) getLights(rw http.ResponseWriter, r *http.Request) {
+	lights, err := s.palette.GetLights()
+	if err != nil {
+		http.Error(rw, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
+		return
+	}
+
+	lightStates := make([]hue.LightState, 0)
+	ch := s.palette.GetGroup(lights)
+	for attrsOrErr := range ch {
+		if attrsOrErr.Error != nil {
+			err = attrsOrErr.Error
+		} else {
+			state := attrsOrErr.State
+			if state != nil {
+				lightStates = append(lightStates, *state)
+			}
+		}
+	}
+
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(rw, struct {
+		Lights []hue.LightState
+	}{
+		Lights: lightStates,
+	})
 }
 
 func (s *Server) setPalette(rw http.ResponseWriter, r *http.Request) {
@@ -160,11 +195,7 @@ func (s *Server) setPalette(rw http.ResponseWriter, r *http.Request) {
 	}
 	err = handleErrChan(rw, errChan)
 	if err == nil {
-		json.NewEncoder(rw).Encode(struct {
-			PrimaryState hue.LightState
-		}{
-			PrimaryState: state,
-		})
+		s.getLights(rw, r)
 	}
 }
 
@@ -191,4 +222,19 @@ func handleErrChan(rw http.ResponseWriter, errChan <-chan error) error {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 	}
 	return err
+}
+
+func writeJSON(rw http.ResponseWriter, payload interface{}) error {
+	return writeJSONStatus(rw, payload, http.StatusOK)
+}
+
+func writeJSONStatus(rw http.ResponseWriter, payload interface{}, status int) error {
+	marshalled, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return err
+	}
+	rw.Header().Set("Content-Type", "application/json; charset=utf-8")
+	rw.WriteHeader(status)
+	fmt.Fprint(rw, string(marshalled))
+	return nil
 }

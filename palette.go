@@ -14,7 +14,7 @@ const (
 )
 
 type Palette struct {
-	user *hue.User
+	*hue.User
 }
 
 type config struct {
@@ -26,7 +26,7 @@ func New(bridge *hue.Bridge) (*Palette, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Palette{user: user}, nil
+	return &Palette{User: user}, nil
 }
 
 func LoadFromConfig(bridge *hue.Bridge) (*Palette, error) {
@@ -44,19 +44,15 @@ func LoadFromConfig(bridge *hue.Bridge) (*Palette, error) {
 			return nil, errors.New("Invalid user")
 		}
 	}
-	p := Palette{user: hue.NewUserWithBridge(c.Username, bridge)}
+	p := Palette{User: hue.NewUserWithBridge(c.Username, bridge)}
 	return &p, nil
 }
 
 func (p *Palette) SaveToConfig() error {
-	config := config{Username: p.user.Username}
+	config := config{Username: p.Username}
 	b, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
 		return err
 	}
 	return ioutil.WriteFile(CONFIGFILE, b, 0666)
-}
-
-func (p *Palette) GetLights() ([]hue.Light, error) {
-	return p.user.GetLights()
 }

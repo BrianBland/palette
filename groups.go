@@ -6,13 +6,40 @@ import (
 	"github.com/BrianBland/go-hue"
 )
 
+type LightAttributesOrError struct {
+	*hue.LightAttributes
+	Error error
+}
+
+func (p *Palette) GetGroup(lights []hue.Light) <-chan LightAttributesOrError {
+	res := make(chan LightAttributesOrError, len(lights))
+	var wg sync.WaitGroup
+	wg.Add(len(lights))
+
+	getLight := func(i int, res chan<- LightAttributesOrError) {
+		attrs, err := p.GetLightAttributes(lights[i].Id)
+		res <- LightAttributesOrError{LightAttributes: attrs, Error: err}
+		wg.Done()
+	}
+	for i := range lights {
+		go getLight(i, res)
+	}
+
+	go func() {
+		wg.Wait()
+		close(res)
+	}()
+
+	return res
+}
+
 func (p *Palette) SetGroup(lights []hue.Light, states []hue.LightState) <-chan error {
 	res := make(chan error, len(lights))
 	var wg sync.WaitGroup
 	wg.Add(len(lights))
 
 	setLight := func(i int, res chan<- error) {
-		res <- p.user.SetLightState(lights[i].Id, &states[i%len(states)])
+		res <- p.SetLightState(lights[i].Id, &states[i%len(states)])
 		wg.Done()
 	}
 	for i := range lights {
